@@ -4,10 +4,15 @@ haystack-ai>=2.0.0
 # LLM Integration
 anthropic-haystack
 
-# Vector Database Options (choose based on needs)
+# Embeddings
+sentence-transformers  # For generating text embeddings
+
+# Vector Database
+chromadb  # For persistent local or Docker deployment
+
+# Alternative Vector Databases (currently not used)
 # faiss-cpu  # For local development
-# chromadb   # For persistent local or Docker deployment
-# qdrant-client  # For Qdrant vector database
+# qdrant-client  # For Qdrant vector database (TODO: Consider for production)
 # weaviate-client  # For Weaviate
 
 # Document Processing
