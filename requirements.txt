@@ -1,0 +1,32 @@
+# Core RAG Framework
+haystack-ai>=2.0.0
+
+# LLM Integration
+anthropic-haystack
+
+# Vector Database Options (choose based on needs)
+# faiss-cpu  # For local development
+# chromadb   # For persistent local or Docker deployment
+# qdrant-client  # For Qdrant vector database
+# weaviate-client  # For Weaviate
+
+# Document Processing
+pypdf  # PDF support
+python-docx  # Word document support
+markdown  # Markdown parsing
+beautifulsoup4  # HTML parsing
+lxml  # XML/HTML processing
+
+# Utilities
+python-dotenv  # Environment variable management
+pydantic  # Data validation
+pyyaml  # Configuration files
+
+# API/Interface (if building REST API)
+fastapi  # Web framework
+uvicorn  # ASGI server
+
+# Development
+pytest  # Testing
+black  # Code formatting
+ruff  # Linting
