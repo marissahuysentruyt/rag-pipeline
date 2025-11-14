@@ -54,6 +54,18 @@ cp .env.example .env
 # Edit .env and add your API keys
 ```
 
+4. Verify your setup:
+```bash
+python tests/test_setup.py
+```
+
+5. Run the demo:
+```bash
+python demo_simple_rag.py
+```
+
+See [tests/TESTING.md](tests/TESTING.md) for detailed testing instructions and troubleshooting.
+
 ## Project Structure
 
 See `rag-plan.md` for detailed architecture and implementation plan.
@@ -63,6 +75,16 @@ See `rag-plan.md` for detailed architecture and implementation plan.
 - Run tests: `pytest tests/`
 - Format code: `black src/`
 - Lint: `ruff check src/`
+
+## Vector Database
+
+Currently using **Chroma** for vector storage and retrieval. Chroma provides a good balance of ease-of-use, Docker compatibility, and features suitable for design system documentation.
+
+**TODO:** Explore **Qdrant** for production deployments. Qdrant offers:
+- Superior performance for large-scale vector search
+- Advanced metadata filtering capabilities
+- Better horizontal scaling options
+- More granular control over indexing strategies
 
 ## License
 
