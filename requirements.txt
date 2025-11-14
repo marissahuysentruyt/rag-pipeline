@@ -15,6 +15,12 @@ chromadb  # For persistent local or Docker deployment
 # qdrant-client  # For Qdrant vector database (TODO: Consider for production)
 # weaviate-client  # For Weaviate
 
+# Web Crawling
+crawlee  # Modern web crawling framework
+playwright  # Browser automation for JS-heavy sites
+html2text  # Convert HTML to markdown
+readability-lxml  # Extract main content from HTML
+
 # Document Processing
 pypdf  # PDF support
 python-docx  # Word document support
