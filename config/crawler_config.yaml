@@ -1,0 +1,71 @@
+sources:
+- name: Spectrum Web Components
+  start_url: https://opensource.adobe.com/spectrum-web-components/index.html
+  allowed_domains:
+  - opensource.adobe.com
+  url_patterns:
+  - '*/spectrum-web-components/index.html*'
+  max_depth: 3
+- name: Spectrum Design System
+  start_url: https://spectrum.adobe.com/
+  allowed_domains:
+  - spectrum.adobe.com
+  url_patterns:
+  - '*'
+  max_depth: 4
+- name: React Spectrum
+  start_url: https://react-spectrum.adobe.com/react-spectrum/index.html
+  allowed_domains:
+  - react-spectrum.adobe.com
+  url_patterns:
+  - '*/react-spectrum/index.html*'
+  max_depth: 3
+- name: Spectrum CSS
+  start_url: https://opensource.adobe.com/spectrum-css/
+  allowed_domains:
+  - opensource.adobe.com
+  url_patterns:
+  - '*/spectrum-css/*'
+  max_depth: 3
+crawler:
+  max_requests_per_crawl: 1000
+  max_concurrent_requests: 5
+  request_timeout: 30
+  max_retries: 3
+  retry_delay: 2
+  delay_between_requests: 1
+  respect_robots_txt: true
+  use_browser: false
+  browser_headless: true
+incremental:
+  enabled: true
+  change_detection: hash
+  hash_algorithm: sha256
+  state_storage: ./data/crawler_state.db
+  force_recrawl_after_days: 7
+extraction:
+  remove_elements:
+  - nav
+  - header
+  - footer
+  - .sidebar
+  - .navigation
+  - .breadcrumb
+  - '#table-of-contents'
+  preserve_elements:
+  - pre
+  - code
+  - table
+  output_format: markdown
+  min_content_length: 100
+metadata:
+  extract_meta_tags: true
+  extract_from_url: true
+  custom_extractors:
+    component_name: h1.component-title
+    category: .breadcrumb li:last-child
+    version: .version-selector .current
+output:
+  raw_output_dir: ./data/raw/crawled
+  save_html: false
+  metadata_output: ./data/raw/metadata.json
