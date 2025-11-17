@@ -19,6 +19,12 @@ from bs4 import BeautifulSoup
 from readability import Document as ReadabilityDocument
 import html2text
 
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,6 +42,24 @@ class IncrementalDocCrawler:
             'User-Agent': 'Mozilla/5.0 (compatible; DesignSystemCrawler/1.0; +https://github.com/yourusername/rag-pipeline)'
         })
         self.visited_urls: Set[str] = set()
+
+        # Initialize Playwright if browser mode is enabled
+        self.playwright = None
+        self.browser = None
+        self.use_browser = self.config['crawler'].get('use_browser', False)
+
+        if self.use_browser:
+            if not PLAYWRIGHT_AVAILABLE:
+                raise ImportError(
+                    "Playwright is not installed. Install it with: "
+                    "pip install playwright && playwright install"
+                )
+            logger.info("Initializing Playwright browser...")
+            self.playwright = sync_playwright().start()
+            self.browser = self.playwright.chromium.launch(
+                headless=self.config['crawler'].get('browser_headless', True)
+            )
+            logger.info("Browser initialized")
 
     def _load_config(self, config_path: str) -> dict:
         """Load crawler configuration from YAML file."""
@@ -222,6 +246,13 @@ class IncrementalDocCrawler:
 
     def _fetch_page(self, url: str) -> Optional[str]:
         """Fetch page content."""
+        if self.use_browser:
+            return self._fetch_page_with_browser(url)
+        else:
+            return self._fetch_page_with_requests(url)
+
+    def _fetch_page_with_requests(self, url: str) -> Optional[str]:
+        """Fetch page content using requests library."""
         try:
             response = self.session.get(
                 url,
@@ -232,6 +263,21 @@ class IncrementalDocCrawler:
 
         except requests.RequestException as e:
             logger.error(f"Failed to fetch {url}: {e}")
+            return None
+
+    def _fetch_page_with_browser(self, url: str) -> Optional[str]:
+        """Fetch page content using Playwright browser."""
+        try:
+            page = self.browser.new_page()
+            page.goto(url, timeout=self.config['crawler']['request_timeout'] * 1000)
+            # Wait for network to be idle to ensure JavaScript has loaded
+            page.wait_for_load_state('networkidle', timeout=30000)
+            content = page.content()
+            page.close()
+            return content
+
+        except Exception as e:
+            logger.error(f"Failed to fetch {url} with browser: {e}")
             return None
 
     def _crawl_page(self, url: str, source_config: Dict, depth: int):
@@ -358,9 +404,20 @@ class IncrementalDocCrawler:
         self._save_state()
         logger.info("All crawls completed")
 
+    def cleanup(self):
+        """Clean up resources."""
+        if self.browser:
+            logger.info("Closing browser...")
+            self.browser.close()
+        if self.playwright:
+            self.playwright.stop()
+
     def run(self):
         """Run the crawler."""
-        self.crawl_all_sources()
+        try:
+            self.crawl_all_sources()
+        finally:
+            self.cleanup()
 
 
 def main():
