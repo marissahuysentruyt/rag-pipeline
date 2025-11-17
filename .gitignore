@@ -39,6 +39,7 @@ data/raw/*
 data/processed/*
 data/vectorstore/*
 data/chroma_db/
+src/query/data/chroma_db/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/vectorstore/.gitkeep
