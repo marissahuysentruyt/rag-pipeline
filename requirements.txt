@@ -9,6 +9,7 @@ sentence-transformers  # For generating text embeddings
 
 # Vector Database
 chromadb  # For persistent local or Docker deployment
+chroma-haystack  # Haystack integration for Chroma
 
 # Alternative Vector Databases (currently not used)
 # faiss-cpu  # For local development
