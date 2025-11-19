@@ -13,7 +13,7 @@ from haystack.components.embedders import SentenceTransformersDocumentEmbedder
 from haystack.document_stores.types import DuplicatePolicy
 from haystack_integrations.document_stores.chroma import ChromaDocumentStore
 
-from document_processor import DocumentProcessor, DocumentChunk
+from src.ingestion.document_processor import DocumentProcessor, DocumentChunk
 
 logger = logging.getLogger(__name__)
 
