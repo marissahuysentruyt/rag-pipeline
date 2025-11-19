@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import yaml
 
+from src.processing.chunkers import MarkdownChunker, ChunkingConfig, Chunk, ChunkType
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,6 +58,15 @@ class DocumentProcessor:
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
 
+        # Initialize markdown chunker with configuration
+        self.chunker = MarkdownChunker(
+            ChunkingConfig(
+                min_chunk_size=min_chunk_size,
+                max_chunk_size=max_chunk_size,
+                preserve_code_blocks=True
+            )
+        )
+
     def parse_markdown_file(self, file_path: Path) -> Optional[Dict]:
         """
         Parse a markdown file with YAML frontmatter.
@@ -97,104 +108,29 @@ class DocumentProcessor:
         """
         Extract code blocks from markdown content.
 
+        Delegates to MarkdownChunker for consistency.
+
         Returns:
             List of dicts with 'type' (code/text), 'content', and 'start_pos'
         """
-        blocks = []
-        last_pos = 0
-
-        # Pattern to match [code]...[/code] blocks
-        code_pattern = re.compile(r'\[code\](.*?)\[/code\]', re.DOTALL)
-
-        for match in code_pattern.finditer(content):
-            # Add text before code block
-            if match.start() > last_pos:
-                text_content = content[last_pos:match.start()].strip()
-                if text_content:
-                    blocks.append({
-                        "type": "text",
-                        "content": text_content,
-                        "start_pos": last_pos
-                    })
-
-            # Add code block
-            code_content = match.group(1).strip()
-            if code_content:
-                blocks.append({
-                    "type": "code",
-                    "content": code_content,
-                    "start_pos": match.start()
-                })
-
-            last_pos = match.end()
-
-        # Add remaining text
-        if last_pos < len(content):
-            text_content = content[last_pos:].strip()
-            if text_content:
-                blocks.append({
-                    "type": "text",
-                    "content": text_content,
-                    "start_pos": last_pos
-                })
-
-        return blocks if blocks else [{"type": "text", "content": content, "start_pos": 0}]
+        return self.chunker.extract_code_blocks(content)
 
     def extract_sections(self, content: str) -> List[Dict]:
         """
         Split content into sections based on markdown headings.
 
+        Delegates to MarkdownChunker for consistency.
+
         Returns:
             List of dicts with 'heading', 'level', 'content'
         """
-        sections = []
-        lines = content.split('\n')
-        current_section = {
-            "heading": None,
-            "level": 0,
-            "content": []
-        }
-
-        for line in lines:
-            # Check if line is a heading
-            heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
-            if heading_match:
-                # Save previous section if it has content
-                if current_section["content"]:
-                    sections.append({
-                        **current_section,
-                        "content": '\n'.join(current_section["content"]).strip()
-                    })
-
-                # Start new section
-                level = len(heading_match.group(1))
-                heading = heading_match.group(2).strip()
-                current_section = {
-                    "heading": heading,
-                    "level": level,
-                    "content": []
-                }
-            else:
-                current_section["content"].append(line)
-
-        # Add final section
-        if current_section["content"]:
-            sections.append({
-                **current_section,
-                "content": '\n'.join(current_section["content"]).strip()
-            })
-
-        return sections
+        return self.chunker.extract_sections(content)
 
     def create_chunks(self, document: Dict) -> List[DocumentChunk]:
         """
         Create intelligent chunks from a parsed document.
 
-        Strategy:
-        - Split by headings to preserve context
-        - Keep code blocks intact
-        - Combine small sections
-        - Split large sections while preserving code blocks
+        Delegates to MarkdownChunker and converts results to DocumentChunk format.
 
         Args:
             document: Dict with 'metadata' and 'content' keys
@@ -204,89 +140,29 @@ class DocumentProcessor:
         """
         metadata = document["metadata"]
         content = document["content"]
-        chunks = []
 
-        # Extract sections by heading
-        sections = self.extract_sections(content)
+        # Use the chunker to create chunks
+        chunks = self.chunker.chunk_text(content, metadata)
 
-        if not sections:
-            # No headings, treat as single section
-            sections = [{"heading": None, "level": 0, "content": content}]
+        # Convert from Chunk to DocumentChunk for backward compatibility
+        document_chunks = []
+        for chunk in chunks:
+            # Map ChunkType to string
+            chunk_type_str = "text"
+            if chunk.chunk_type == ChunkType.CODE:
+                chunk_type_str = "mixed"  # Keep "mixed" for backward compatibility
+            elif chunk.chunk_type == ChunkType.TEXT:
+                chunk_type_str = "text"
 
-        for section in sections:
-            section_content = section["content"]
-            section_heading = section["heading"]
-
-            # Extract code blocks from this section
-            blocks = self.extract_code_blocks(section_content)
-
-            # Create chunks from blocks
-            current_chunk_content = []
-            current_chunk_has_code = False
-
-            for block in blocks:
-                block_content = block["content"]
-                block_type = block["type"]
-
-                # Add heading to first chunk of section
-                if section_heading and not current_chunk_content:
-                    if section["level"] <= 3:  # Only include h1-h3
-                        current_chunk_content.append(f"{'#' * section['level']} {section_heading}\n")
-
-                # Estimate current size
-                current_size = sum(len(c) for c in current_chunk_content)
-                block_size = len(block_content)
-
-                # If adding this block would exceed max size, save current chunk
-                if current_chunk_content and current_size + block_size > self.max_chunk_size:
-                    chunk_text = '\n\n'.join(current_chunk_content).strip()
-                    if len(chunk_text) >= self.min_chunk_size:
-                        chunk_type = "mixed" if current_chunk_has_code else "text"
-                        chunks.append(DocumentChunk(
-                            content=chunk_text,
-                            metadata=metadata,
-                            chunk_type=chunk_type,
-                            heading=section_heading
-                        ))
-                    current_chunk_content = []
-                    current_chunk_has_code = False
-
-                    # Re-add heading to new chunk
-                    if section_heading and section["level"] <= 3:
-                        current_chunk_content.append(f"{'#' * section['level']} {section_heading}\n")
-
-                # Add block to current chunk
-                if block_type == "code":
-                    current_chunk_content.append(f"```\n{block_content}\n```")
-                    current_chunk_has_code = True
-                else:
-                    current_chunk_content.append(block_content)
-
-            # Save final chunk from this section
-            if current_chunk_content:
-                chunk_text = '\n\n'.join(current_chunk_content).strip()
-                if len(chunk_text) >= self.min_chunk_size:
-                    chunk_type = "mixed" if current_chunk_has_code else "text"
-                    chunks.append(DocumentChunk(
-                        content=chunk_text,
-                        metadata=metadata,
-                        chunk_type=chunk_type,
-                        heading=section_heading
-                    ))
-
-        # If no chunks were created (all content too short), create one chunk
-        if not chunks and len(content.strip()) >= self.min_chunk_size:
-            blocks = self.extract_code_blocks(content)
-            has_code = any(b["type"] == "code" for b in blocks)
-            chunks.append(DocumentChunk(
-                content=content,
+            document_chunks.append(DocumentChunk(
+                content=chunk.content,
                 metadata=metadata,
-                chunk_type="mixed" if has_code else "text",
-                heading=None
+                chunk_type=chunk_type_str,
+                heading=chunk.heading
             ))
 
-        logger.debug(f"Created {len(chunks)} chunks from document: {metadata.get('title', 'Unknown')}")
-        return chunks
+        logger.debug(f"Created {len(document_chunks)} chunks from document: {metadata.get('title', 'Unknown')}")
+        return document_chunks
 
     def process_file(self, file_path: Path) -> List[DocumentChunk]:
         """

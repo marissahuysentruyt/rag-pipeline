@@ -13,6 +13,7 @@ from .base import (
     ChunkingError,
     InvalidChunkSizeError
 )
+from .markdown import MarkdownChunker
 
 __all__ = [
     'ChunkerStrategy',
@@ -20,5 +21,6 @@ __all__ = [
     'Chunk',
     'ChunkType',
     'ChunkingError',
-    'InvalidChunkSizeError'
+    'InvalidChunkSizeError',
+    'MarkdownChunker'
 ]
