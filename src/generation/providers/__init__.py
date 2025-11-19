@@ -1,11 +1,11 @@
 """
-Generation module for LLM-based text generation.
+LLM provider implementations.
 
-This module provides interfaces and implementations for various
-LLM providers.
+This package provides interfaces and implementations for various
+LLM providers (Anthropic, OpenAI, Cohere, etc.).
 """
 
-from .providers import (
+from .base import (
     LLMProvider,
     LLMConfig,
     ChatMessage,
