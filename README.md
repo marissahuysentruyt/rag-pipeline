@@ -68,7 +68,89 @@ See [tests/TESTING.md](tests/TESTING.md) for detailed testing instructions and t
 
 ## Project Structure
 
-See `rag-plan.md` for detailed architecture and implementation plan.
+```
+rag-pipeline/
+├── src/
+│   ├── ingestion/          # Document ingestion
+│   │   ├── adapters/       # Ingestion source adapters (web, file, CMS, DB)
+│   │   ├── crawl_docs.py   # Web crawler CLI
+│   │   ├── web_crawler.py  # Incremental web crawler
+│   │   ├── document_processor.py  # Markdown parsing & chunking
+│   │   └── document_indexer.py    # Embedding & indexing
+│   │
+│   ├── processing/         # Document processing
+│   │   └── chunkers/       # Chunking strategies (markdown, semantic, fixed-size)
+│   │
+│   ├── embedding/          # Embedding generation
+│   │   └── providers/      # Embedding providers (sentence-transformers, OpenAI)
+│   │
+│   ├── retrieval/          # Document retrieval
+│   │   └── strategies/     # Retrieval strategies (vector, hybrid, BM25)
+│   │
+│   ├── generation/         # LLM integration
+│   │   └── providers/      # LLM providers (Anthropic, OpenAI, local)
+│   │
+│   ├── query/              # Query interface
+│   │   ├── interfaces/     # Query interfaces (CLI, API, Custom GPT)
+│   │   └── rag_pipeline.py # RAG orchestration
+│   │
+│   └── api/               # REST API
+│       └── server.py      # FastAPI server
+│
+├── data/
+│   ├── raw/crawled/       # Crawled markdown files
+│   └── chroma_db/         # Chroma vector database (2,147 docs)
+│
+├── tests/                 # 71 unit tests
+├── config/                # Configuration files
+├── query.py               # CLI query tool
+└── rag-plan.md           # Detailed implementation plan
+```
+
+## Architecture
+
+This project uses a **modular adapter-based architecture** to support multiple data sources, embedding providers, LLMs, and query interfaces.
+
+### Core Abstractions
+
+**1. Ingestion Adapters** (`src/ingestion/adapters/`)
+- Abstract base class for different document sources
+- Current: Web crawler
+- Planned: File system, CMS (Contentful), Database readers
+
+**2. Chunking Strategies** (`src/processing/chunkers/`)
+- Abstract base class for text chunking approaches
+- Current: Markdown-aware chunker (preserves code blocks, respects headings)
+- Planned: Semantic chunking, fixed-size chunking
+
+**3. Embedding Providers** (`src/embedding/providers/`)
+- Abstract base class for embedding models
+- Current: Sentence Transformers (all-MiniLM-L6-v2)
+- Planned: OpenAI embeddings, Cohere embeddings
+
+**4. Retrieval Strategies** (`src/retrieval/strategies/`)
+- Abstract base class for document retrieval
+- Current: Vector similarity search with Chroma
+- Planned: Hybrid search, BM25, reranking
+
+**5. LLM Providers** (`src/generation/providers/`)
+- Abstract base class for language models
+- Current: Anthropic Claude Sonnet 4.5
+- Planned: OpenAI GPT-4, local models (Ollama)
+
+**6. Query Interfaces** (`src/query/interfaces/`)
+- Abstract base class for query endpoints
+- Current: CLI (Rich), REST API (FastAPI)
+- Planned: Custom GPT Actions, OpenAI-compatible API
+
+### Benefits of Modular Design
+
+- **Extensibility**: Easy to add new providers without changing core logic
+- **Testability**: Each component can be tested independently (71 tests, all passing)
+- **Maintainability**: Clear separation of concerns
+- **Flexibility**: Swap implementations without breaking existing code
+
+See `rag-plan.md` for detailed implementation plan and architecture evolution.
 
 ## Development
 
