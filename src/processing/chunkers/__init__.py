@@ -1,11 +1,11 @@
 """
-Processing module for document chunking and transformation.
+Document chunking strategies.
 
-This module provides interfaces and implementations for various
-chunking strategies.
+This package provides interfaces and implementations for various
+chunking strategies (fixed-size, semantic, markdown-aware, etc.).
 """
 
-from .chunkers import (
+from .base import (
     ChunkerStrategy,
     ChunkingConfig,
     Chunk,
