@@ -1,11 +1,11 @@
 """
-Retrieval module for document retrieval strategies.
+Document retrieval strategies.
 
-This module provides interfaces and implementations for various
-retrieval strategies.
+This package provides interfaces and implementations for various
+retrieval strategies (vector similarity, hybrid, BM25, reranking, etc.).
 """
 
-from .strategies import (
+from .base import (
     RetrievalStrategy,
     RetrievalConfig,
     RetrievedDocument,
