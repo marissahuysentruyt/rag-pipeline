@@ -1,11 +1,11 @@
 """
-Embedding module for generating document embeddings.
+Embedding provider implementations.
 
-This module provides interfaces and implementations for various
-embedding providers.
+This package provides interfaces and implementations for various
+embedding providers (Sentence Transformers, OpenAI, Cohere, etc.).
 """
 
-from .providers import (
+from .base import (
     EmbeddingProvider,
     EmbeddingConfig,
     EmbeddingResult,
