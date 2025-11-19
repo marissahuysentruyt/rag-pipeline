@@ -76,6 +76,265 @@ See `rag-plan.md` for detailed architecture and implementation plan.
 - Format code: `black src/`
 - Lint: `ruff check src/`
 
+## Using the CLI Query Tool
+
+The project includes a rich command-line interface for querying the indexed documentation.
+
+### Basic Usage
+
+**Single query:**
+```bash
+python query.py "How do I use a Button component in React Spectrum?"
+```
+
+**Interactive mode:**
+```bash
+python query.py --interactive
+```
+
+### Interactive Commands
+
+Once in interactive mode, you can use these commands:
+- `help` - Show available commands
+- `sources on/off` - Toggle source citations display
+- `clear` - Clear the screen
+- `exit`, `quit`, `q` - Exit the program
+
+### Query Options
+
+**Filter by domain:**
+```bash
+python query.py "color guidelines" --domain "spectrum.adobe.com"
+```
+
+**Adjust number of results:**
+```bash
+python query.py "Button examples" --top-k 10
+```
+
+**Hide source citations:**
+```bash
+python query.py "What is Spectrum?" --no-sources
+```
+
+**Enable verbose logging:**
+```bash
+python query.py "button" --verbose
+```
+
+### Example Session
+
+```bash
+$ python query.py --interactive
+
+╭────────────────────────────────────╮
+│ Design System Documentation Search │
+│ Powered by RAG + Claude 4.5        │
+╰────────────────────────────────────╯
+
+Type your questions below. Type 'exit' or 'quit' to leave.
+Type 'help' for available commands.
+
+❯ How do I use a button in React Spectrum?
+[Returns formatted answer with code examples and source citations]
+
+❯ sources off
+Source display disabled
+
+❯ What are the color tokens?
+[Returns answer without showing sources]
+
+❯ exit
+Goodbye!
+```
+
+### Example Output
+
+When you run a query, you'll see:
+1. **Question** - Your query displayed clearly
+2. **Answer** - Formatted markdown response from Claude with code examples
+3. **Sources** - Table showing retrieved documents with titles, URLs, and relevance scores
+
+```
+╭─────────────────────────────────── Answer ───────────────────────────────────╮
+│ To use a Button component in React Spectrum:                                 │
+│                                                                              │
+│ 1. Install the package:                                                      │
+│    npm install @adobe/react-spectrum                                         │
+│                                                                              │
+│ 2. Import and use:                                                           │
+│    import { Button } from '@adobe/react-spectrum';                           │
+│                                                                              │
+│    <Button variant="accent">Click me</Button>                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+                                    Sources
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┓
+┃ # ┃ Title               ┃ URL                     ┃ Score ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━┩
+│ 1 │ Button – React      │ https://react-spectr... │ 0.599 │
+│ 2 │ Provider – React    │ https://react-spectr... │ 0.748 │
+│ 3 │ ButtonGroup         │ https://react-spectr... │ 0.825 │
+└───┴─────────────────────┴─────────────────────────┴───────┘
+```
+
+## Running Tests
+
+The project includes comprehensive test coverage with 71 unit tests.
+
+### Run All Tests
+
+```bash
+# Run all tests with verbose output
+pytest tests/ -v
+
+# Run all tests with summary
+pytest tests/ -q
+
+# Run with coverage report
+pytest tests/ --cov=src --cov-report=html
+```
+
+### Run Specific Test Suites
+
+```bash
+# Document processing tests (20 tests)
+pytest tests/test_document_processor.py -v
+
+# Document indexing tests (25 tests)
+pytest tests/test_document_indexer.py -v
+
+# RAG pipeline tests (21 tests)
+pytest tests/test_rag_pipeline.py -v
+
+# Setup verification tests (5 tests)
+pytest tests/test_setup.py -v
+```
+
+### Test Coverage Breakdown
+
+**Total: 71 tests**
+
+**Document Processor (20 tests)**
+- Markdown parsing with YAML frontmatter
+- Code block extraction using `[code]...[/code]` patterns
+- Section extraction by markdown headings
+- Intelligent chunking (200-1500 chars)
+- Metadata preservation
+- File and directory processing
+
+**Document Indexer (25 tests)**
+- ChromaDB integration
+- Embedding generation (384-dimensional vectors)
+- Batch processing with configurable sizes
+- Collection management and persistence
+- Duplicate handling policies
+- Edge cases (empty content, long content, special chars)
+
+**RAG Pipeline (21 tests)**
+- Pipeline initialization and configuration
+- Semantic document retrieval
+- Metadata filtering (domain, title, etc.)
+- Query generation with mocked Claude responses
+- Prompt building and component connections
+- Error handling and propagation
+- Multiple queries on same instance
+
+**Setup Verification (5 tests)**
+- Dependency availability checks
+- API key validation
+- ChromaDB connectivity
+- Haystack pipeline functionality
+- Anthropic integration
+
+### Example Test Output
+
+```bash
+$ pytest tests/ -v
+
+tests/test_document_processor.py::TestMarkdownParsing::test_parse_file_with_frontmatter PASSED
+tests/test_document_processor.py::TestCodeBlockExtraction::test_extract_code_blocks PASSED
+tests/test_document_indexer.py::TestIndexing::test_index_multiple_chunks PASSED
+tests/test_rag_pipeline.py::TestQueryGeneration::test_query_basic PASSED
+
+======================== 71 passed in 9.49s ========================
+```
+
+### Continuous Testing During Development
+
+For active development, automatically run tests on file changes:
+
+```bash
+# Install pytest-watch
+pip install pytest-watch
+
+# Run in watch mode
+ptw tests/
+```
+
+## Building and Updating the Index
+
+### Current Index Status
+
+The system currently has:
+- **2,147 indexed document chunks**
+- **314 source pages** from Adobe Spectrum documentation
+- **37 MB** vector database
+- **3 documentation sources**: Spectrum Web Components, React Spectrum, Spectrum Design System
+
+### Crawling Documentation
+
+To update or rebuild the documentation index:
+
+**1. Crawl configured sources:**
+```bash
+python src/ingestion/crawl_docs.py crawl
+```
+
+**2. Add a new documentation source:**
+```bash
+python src/ingestion/crawl_docs.py add-source \
+  --name "My Design System" \
+  --url "https://example.com/docs" \
+  --max-depth 3
+```
+
+**3. List all configured sources:**
+```bash
+python src/ingestion/crawl_docs.py list-sources
+```
+
+**4. Remove a source:**
+```bash
+python src/ingestion/crawl_docs.py remove-source "My Design System"
+```
+
+Crawler configuration is stored in `config/crawler_config.yaml`.
+
+### Indexing Documents
+
+After crawling, index the documents into the vector database:
+
+```bash
+python src/ingestion/document_indexer.py
+```
+
+This process:
+1. Reads markdown files from `data/raw/crawled/`
+2. Parses YAML frontmatter and content
+3. Creates intelligent chunks (preserves code blocks)
+4. Generates embeddings using sentence-transformers
+5. Stores in ChromaDB at `data/chroma_db/`
+
+**Expected output:**
+```
+2025-11-18 12:00:00 - Processing documents...
+2025-11-18 12:00:05 - Created 2,161 chunks from 314 files
+2025-11-18 12:00:10 - Indexing documents...
+2025-11-18 12:00:53 - Successfully indexed 2,147 documents
+2025-11-18 12:00:53 - Stats: {'total_documents': 2147, 'collection_name': 'design_system_docs'}
+```
+
 ## Vector Database
 
 Currently using **Chroma** for vector storage and retrieval. Chroma provides a good balance of ease-of-use, Docker compatibility, and features suitable for design system documentation.
