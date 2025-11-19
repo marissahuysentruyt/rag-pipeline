@@ -335,6 +335,181 @@ This process:
 2025-11-18 12:00:53 - Stats: {'total_documents': 2147, 'collection_name': 'design_system_docs'}
 ```
 
+## REST API
+
+The project includes a FastAPI-based REST API for querying the documentation.
+
+### Starting the API Server
+
+**Production mode:**
+```bash
+python -m uvicorn src.api.server:app --host 0.0.0.0 --port 8000
+```
+
+**Development mode (with auto-reload):**
+```bash
+python -m uvicorn src.api.server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+The API will be available at `http://localhost:8000`
+
+### API Endpoints
+
+#### GET /
+Get API information and available endpoints.
+
+```bash
+curl http://localhost:8000/
+```
+
+**Response:**
+```json
+{
+    "name": "Design System RAG API",
+    "version": "1.0.0",
+    "endpoints": {
+        "/query": "POST - Query the documentation",
+        "/health": "GET - Health check",
+        "/stats": "GET - Index statistics",
+        "/refresh": "POST - Refresh documentation index"
+    }
+}
+```
+
+#### GET /health
+Health check endpoint to verify API status.
+
+```bash
+curl http://localhost:8000/health
+```
+
+**Response:**
+```json
+{
+    "status": "healthy",
+    "version": "1.0.0",
+    "database_connected": true,
+    "api_key_configured": true,
+    "total_documents": 2147
+}
+```
+
+#### GET /stats
+Get statistics about the indexed documents.
+
+```bash
+curl http://localhost:8000/stats
+```
+
+**Response:**
+```json
+{
+    "total_documents": 2147,
+    "collection_name": "design_system_docs",
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "llm_model": "claude-sonnet-4-5-20250929",
+    "persist_path": "./data/chroma_db",
+    "last_refresh": null
+}
+```
+
+#### POST /query
+Query the design system documentation using RAG.
+
+**Request body:**
+```json
+{
+    "question": "How do I use a Button component?",
+    "domain": "react-spectrum.adobe.com",  // Optional: filter by domain
+    "top_k": 5  // Optional: number of documents to retrieve (default: 5, max: 20)
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "How do I use a Button component?",
+    "top_k": 3
+  }'
+```
+
+**Response:**
+```json
+{
+    "answer": "# How to Use a Button Component\n\nThe approach depends on which...",
+    "sources": [
+        {
+            "title": "Button – React Spectrum",
+            "url": "https://react-spectrum.adobe.com/react-spectrum/Button.html",
+            "score": 0.824,
+            "content": "# Button\n\nButtons allow users to perform..."
+        }
+    ],
+    "metadata": {
+        "query": "How do I use a Button component?",
+        "num_documents": 3,
+        "model": "claude-sonnet-4-5-20250929",
+        "filters": null
+    }
+}
+```
+
+**Query with domain filter:**
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "color tokens",
+    "domain": "spectrum.adobe.com",
+    "top_k": 3
+  }'
+```
+
+#### POST /refresh
+Trigger a documentation refresh (recrawl and re-index). This is an asynchronous background task.
+
+```bash
+curl -X POST http://localhost:8000/refresh
+```
+
+**Response:**
+```json
+{
+    "message": "Documentation refresh started",
+    "status": "started",
+    "timestamp": "2025-11-18T20:00:00.000Z"
+}
+```
+
+Check the `/stats` endpoint to see when the refresh completed by checking the `last_refresh` field.
+
+### Interactive API Documentation
+
+FastAPI automatically generates interactive API documentation:
+
+- **Swagger UI:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+
+These interfaces allow you to explore and test all endpoints directly from your browser.
+
+### API Error Handling
+
+The API returns standard HTTP status codes:
+
+- `200 OK` - Request successful
+- `400 Bad Request` - Invalid request parameters
+- `500 Internal Server Error` - Server error
+- `503 Service Unavailable` - Service not ready (e.g., during startup)
+
+**Error response format:**
+```json
+{
+    "detail": "Error message describing what went wrong"
+}
+```
+
 ## Vector Database
 
 Currently using **Chroma** for vector storage and retrieval. Chroma provides a good balance of ease-of-use, Docker compatibility, and features suitable for design system documentation.

@@ -34,9 +34,10 @@ python-dotenv  # Environment variable management
 pydantic  # Data validation
 pyyaml  # Configuration files
 
-# API/Interface (if building REST API)
+# API/Interface
 fastapi  # Web framework
 uvicorn  # ASGI server
+rich  # Rich terminal formatting for CLI
 
 # Development
 pytest  # Testing
