@@ -16,6 +16,8 @@ from .base import (
     IndexNotFoundError
 )
 
+from .chroma_retriever import ChromaRetriever
+
 __all__ = [
     'RetrievalStrategy',
     'RetrievalConfig',
@@ -24,5 +26,6 @@ __all__ = [
     'RetrievalResult',
     'RetrievalError',
     'QueryError',
-    'IndexNotFoundError'
+    'IndexNotFoundError',
+    'ChromaRetriever'
 ]

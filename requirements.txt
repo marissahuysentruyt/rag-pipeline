@@ -6,6 +6,7 @@ anthropic-haystack
 
 # Embeddings
 sentence-transformers  # For generating text embeddings
+openai>=1.0.0  # OpenAI API client (optional embedding provider)
 
 # Vector Database
 chromadb  # For persistent local or Docker deployment
