@@ -15,6 +15,16 @@ from .base import (
     RateLimitError
 )
 
+from .sentence_transformers import SentenceTransformersProvider
+
+# Optional providers (may not be installed)
+try:
+    from .openai import OpenAIEmbeddingProvider
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    OpenAIEmbeddingProvider = None
+
 __all__ = [
     'EmbeddingProvider',
     'EmbeddingConfig',
@@ -22,5 +32,8 @@ __all__ = [
     'EmbeddingError',
     'ModelLoadError',
     'TokenLimitExceededError',
-    'RateLimitError'
+    'RateLimitError',
+    'SentenceTransformersProvider',
+    'OpenAIEmbeddingProvider',
+    'OPENAI_AVAILABLE'
 ]
