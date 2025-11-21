@@ -1,12 +1,13 @@
 """
 Document indexer for design system documentation.
-Uses Haystack to generate embeddings and store in Chroma.
+Supports both legacy Haystack embedders and new EmbeddingProvider interface.
 """
 
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
+import numpy as np
 
 from haystack import Document, Pipeline
 from haystack.components.embedders import SentenceTransformersDocumentEmbedder
@@ -14,30 +15,43 @@ from haystack.document_stores.types import DuplicatePolicy
 from haystack_integrations.document_stores.chroma import ChromaDocumentStore
 
 from src.ingestion.document_processor import DocumentProcessor, DocumentChunk
+from src.embedding.providers.base import EmbeddingProvider
+from src.embedding.providers.sentence_transformers import SentenceTransformersProvider
+from src.embedding.providers import EmbeddingConfig
 
 logger = logging.getLogger(__name__)
 
 
 class DocumentIndexer:
-    """Indexes processed documents into Chroma vector store."""
+    """
+    Indexes processed documents into Chroma vector store.
+
+    Supports two modes:
+    1. Legacy mode: Uses Haystack SentenceTransformersDocumentEmbedder (default)
+    2. Provider mode: Uses EmbeddingProvider interface for modular architecture
+    """
 
     def __init__(
         self,
         collection_name: str = "design_system_docs",
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-        persist_path: str = "./data/chroma_db"
+        persist_path: str = "./data/chroma_db",
+        embedding_provider: Optional[EmbeddingProvider] = None
     ):
         """
         Initialize document indexer.
 
         Args:
             collection_name: Name of the Chroma collection
-            embedding_model: Name of the sentence transformers model
+            embedding_model: Name of the sentence transformers model (used if embedding_provider is None)
             persist_path: Path to persist Chroma database
+            embedding_provider: Optional EmbeddingProvider instance for modular architecture
         """
         self.collection_name = collection_name
         self.embedding_model = embedding_model
         self.persist_path = persist_path
+        self.embedding_provider = embedding_provider
+        self.use_provider = embedding_provider is not None
 
         # Initialize document store
         logger.info(f"Initializing Chroma document store at {persist_path}")
@@ -46,16 +60,22 @@ class DocumentIndexer:
             persist_path=persist_path
         )
 
-        # Initialize embedder
-        logger.info(f"Initializing embedder: {embedding_model}")
-        self.embedder = SentenceTransformersDocumentEmbedder(
-            model=embedding_model
-        )
-        self.embedder.warm_up()
+        if self.use_provider:
+            # Use new modular architecture
+            logger.info(f"Using EmbeddingProvider: {type(embedding_provider).__name__}")
+            self.embedder = None
+            self.indexing_pipeline = None
+        else:
+            # Use legacy Haystack embedder
+            logger.info(f"Initializing legacy Haystack embedder: {embedding_model}")
+            self.embedder = SentenceTransformersDocumentEmbedder(
+                model=embedding_model
+            )
+            self.embedder.warm_up()
 
-        # Create indexing pipeline
-        self.indexing_pipeline = Pipeline()
-        self.indexing_pipeline.add_component("embedder", self.embedder)
+            # Create indexing pipeline
+            self.indexing_pipeline = Pipeline()
+            self.indexing_pipeline.add_component("embedder", self.embedder)
 
     def chunk_to_haystack_document(self, chunk: DocumentChunk) -> Document:
         """
@@ -115,7 +135,30 @@ class DocumentIndexer:
 
         logger.info(f"Generating embeddings and indexing {len(documents)} documents...")
 
-        # Process in batches to avoid memory issues
+        if self.use_provider:
+            # Use new EmbeddingProvider interface
+            return self._index_with_provider(documents, duplicate_policy, batch_size)
+        else:
+            # Use legacy Haystack embedder
+            return self._index_with_haystack(documents, duplicate_policy, batch_size)
+
+    def _index_with_haystack(
+        self,
+        documents: List[Document],
+        duplicate_policy: DuplicatePolicy,
+        batch_size: int
+    ) -> int:
+        """
+        Index documents using legacy Haystack embedder.
+
+        Args:
+            documents: List of Haystack Document objects
+            duplicate_policy: How to handle duplicate documents
+            batch_size: Number of documents to process in each batch
+
+        Returns:
+            Number of documents indexed
+        """
         total_indexed = 0
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i+batch_size]
@@ -128,6 +171,50 @@ class DocumentIndexer:
             # Write to document store
             self.document_store.write_documents(
                 documents=docs_with_embeddings,
+                policy=duplicate_policy
+            )
+
+            total_indexed += len(batch)
+            logger.info(f"Indexed {total_indexed}/{len(documents)} documents")
+
+        logger.info(f"Successfully indexed {total_indexed} documents")
+        return total_indexed
+
+    def _index_with_provider(
+        self,
+        documents: List[Document],
+        duplicate_policy: DuplicatePolicy,
+        batch_size: int
+    ) -> int:
+        """
+        Index documents using EmbeddingProvider interface.
+
+        Args:
+            documents: List of Haystack Document objects
+            duplicate_policy: How to handle duplicate documents
+            batch_size: Number of documents to process in each batch
+
+        Returns:
+            Number of documents indexed
+        """
+        total_indexed = 0
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i:i+batch_size]
+            logger.info(f"Processing batch {i//batch_size + 1}/{(len(documents)-1)//batch_size + 1} ({len(batch)} documents)")
+
+            # Extract text content from documents
+            texts = [doc.content for doc in batch]
+
+            # Generate embeddings using provider
+            embeddings = self.embedding_provider.embed_batch(texts)
+
+            # Attach embeddings to documents
+            for doc, embedding in zip(batch, embeddings):
+                doc.embedding = embedding
+
+            # Write to document store
+            self.document_store.write_documents(
+                documents=batch,
                 policy=duplicate_policy
             )
 
