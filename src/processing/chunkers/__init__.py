@@ -2,7 +2,7 @@
 Document chunking strategies.
 
 This package provides interfaces and implementations for various
-chunking strategies (fixed-size, semantic, markdown-aware, etc.).
+chunking strategies (fixed-size, semantic, markdown-aware, code-aware, etc.).
 """
 
 from .base import (
@@ -14,6 +14,7 @@ from .base import (
     InvalidChunkSizeError
 )
 from .markdown import MarkdownChunker
+from .code import CodeChunker
 
 __all__ = [
     'ChunkerStrategy',
@@ -22,5 +23,6 @@ __all__ = [
     'ChunkType',
     'ChunkingError',
     'InvalidChunkSizeError',
-    'MarkdownChunker'
+    'MarkdownChunker',
+    'CodeChunker',
 ]
