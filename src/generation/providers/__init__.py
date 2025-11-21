@@ -17,6 +17,14 @@ from .base import (
     ContextLengthExceededError
 )
 
+# Optional providers (may not be installed)
+try:
+    from .anthropic import AnthropicProvider
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+    AnthropicProvider = None
+
 __all__ = [
     'LLMProvider',
     'LLMConfig',
@@ -26,5 +34,7 @@ __all__ = [
     'GenerationError',
     'AuthenticationError',
     'RateLimitError',
-    'ContextLengthExceededError'
+    'ContextLengthExceededError',
+    'AnthropicProvider',
+    'ANTHROPIC_AVAILABLE'
 ]
