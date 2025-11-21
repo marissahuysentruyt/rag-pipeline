@@ -115,27 +115,27 @@ This project uses a **modular adapter-based architecture** to support multiple d
 
 **1. Ingestion Adapters** (`src/ingestion/adapters/`)
 - Abstract base class for different document sources
-- Current: Web crawler
+- Current: Web crawler, Codebase adapter (11+ languages)
 - Planned: File system, CMS (Contentful), Database readers
 
 **2. Chunking Strategies** (`src/processing/chunkers/`)
 - Abstract base class for text chunking approaches
-- Current: Markdown-aware chunker (preserves code blocks, respects headings)
+- Current: Markdown chunker, Code chunker (language-aware, preserves entities)
 - Planned: Semantic chunking, fixed-size chunking
 
 **3. Embedding Providers** (`src/embedding/providers/`)
 - Abstract base class for embedding models
-- Current: Sentence Transformers (all-MiniLM-L6-v2)
-- Planned: OpenAI embeddings, Cohere embeddings
+- Current: Sentence Transformers (all-MiniLM-L6-v2, local), OpenAI (API)
+- Planned: Cohere embeddings, custom models
 
 **4. Retrieval Strategies** (`src/retrieval/strategies/`)
 - Abstract base class for document retrieval
-- Current: Vector similarity search with Chroma
+- Current: ChromaRetriever (vector similarity, metadata filtering)
 - Planned: Hybrid search, BM25, reranking
 
 **5. LLM Providers** (`src/generation/providers/`)
 - Abstract base class for language models
-- Current: Anthropic Claude Sonnet 4.5
+- Current: Anthropic Claude (Sonnet 4.5, streaming support)
 - Planned: OpenAI GPT-4, local models (Ollama)
 
 **6. Query Interfaces** (`src/query/interfaces/`)
@@ -146,11 +146,58 @@ This project uses a **modular adapter-based architecture** to support multiple d
 ### Benefits of Modular Design
 
 - **Extensibility**: Easy to add new providers without changing core logic
-- **Testability**: Each component can be tested independently (71 tests, all passing)
+- **Testability**: Each component can be tested independently (159 tests, all passing)
 - **Maintainability**: Clear separation of concerns
 - **Flexibility**: Swap implementations without breaking existing code
 
 See `rag-plan.md` for detailed implementation plan and architecture evolution.
+
+## Codebase Ingestion
+
+In addition to documentation, you can index source code from local repositories to enable queries about actual implementations.
+
+### Quick Start
+
+```python
+from src.ingestion.adapters import CodebaseAdapter
+from src.ingestion.parsers import PythonParser, JavaScriptParser
+
+# Configure adapter for your codebase
+config = {
+    "repo_path": "/path/to/your/codebase",
+    "languages": ["python", "javascript", "typescript"],
+    "file_patterns": ["**/*.py", "**/*.js", "**/*.ts"],
+    "exclude_patterns": ["**/node_modules/**", "**/dist/**"]
+}
+
+# Ingest codebase
+adapter = CodebaseAdapter(config)
+adapter.connect()
+
+for doc in adapter.fetch_all():
+    print(f"File: {doc.metadata.title} ({doc.metadata.language})")
+
+# Parse individual files for entity extraction
+parser = PythonParser()
+entities = parser.parse(source_code)
+for entity in entities:
+    print(f"{entity.entity_type.value}: {entity.name} - {entity.signature}")
+```
+
+### Supported Languages
+
+- ✅ Python (AST-based parsing)
+- ✅ JavaScript/TypeScript (regex-based parsing)
+- 🔜 Additional parsers planned (Java, Go, Rust)
+
+### Features
+
+- **Smart Chunking**: Code chunker preserves complete functions and classes
+- **Rich Metadata**: Extracts signatures, parameters, return types, docstrings
+- **Incremental Updates**: Only re-index modified files
+- **Multi-language Support**: 11+ languages with extensible parser system
+
+See [Code Parsing Tests](tests/test_code_parsers.py) for usage examples.
 
 ## Development
 
