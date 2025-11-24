@@ -391,6 +391,149 @@ class CodebaseAdapter(IngestionAdapter):
         """Check if adapter supports incremental updates."""
         return True
 
+    def parse_with_entities(
+        self,
+        file_path: str,
+        parser_registry: Optional[Any] = None,
+        formatter: Optional[Any] = None
+    ) -> List[Document]:
+        """
+        Parse a code file into individual entity documents.
+
+        This method extracts code entities (functions, classes, methods) from
+        a source file and converts each entity into a separate Document with
+        rich metadata.
+
+        Args:
+            file_path: Path to code file (relative to repo_path)
+            parser_registry: CodeParserRegistry instance (optional, creates default if None)
+            formatter: CodeEntityFormatter instance (optional, creates default if None)
+
+        Returns:
+            List of Document objects, one per entity
+
+        Raises:
+            DocumentNotFoundError: If file doesn't exist
+            IngestionError: If parsing fails
+        """
+        from ..parsers.registry import CodeParserRegistry
+        from ..formatters.code_entity_formatter import CodeEntityFormatter
+
+        # Create default registry and formatter if not provided
+        if parser_registry is None:
+            parser_registry = CodeParserRegistry()
+
+        if formatter is None:
+            formatter = CodeEntityFormatter()
+
+        # Resolve file path
+        if self.repo_path:
+            full_path = self.repo_path / file_path
+        else:
+            full_path = Path(file_path)
+
+        if not full_path.exists():
+            raise DocumentNotFoundError(f"File not found: {full_path}")
+
+        # Detect language
+        language = self._detect_language(full_path)
+        if not language:
+            logger.warning(f"Could not detect language for: {file_path}")
+            return []
+
+        # Get parser for this language
+        parser = parser_registry.get_parser(language)
+        if not parser:
+            logger.warning(f"No parser available for language: {language}")
+            return []
+
+        try:
+            # Read source code
+            with open(full_path, 'r', encoding='utf-8') as f:
+                source_code = f.read()
+
+            # Parse into entities
+            entities = parser.parse(source_code, str(full_path))
+
+            if not entities:
+                logger.debug(f"No entities found in: {file_path}")
+                return []
+
+            # Get file metadata for all entities
+            file_metadata = {
+                "file_size": full_path.stat().st_size,
+                "last_modified": datetime.fromtimestamp(full_path.stat().st_mtime)
+            }
+
+            # Convert entities to documents
+            documents = formatter.format_entities(
+                entities,
+                file_path,
+                language,
+                file_metadata
+            )
+
+            logger.info(f"Extracted {len(documents)} entities from {file_path}")
+            return documents
+
+        except Exception as e:
+            raise IngestionError(f"Failed to parse {file_path}: {e}") from e
+
+    def fetch_all_entities(
+        self,
+        parser_registry: Optional[Any] = None,
+        formatter: Optional[Any] = None,
+        batch_size: int = 10
+    ) -> Iterator[Document]:
+        """
+        Fetch all code files and parse into entity-level documents.
+
+        This is an alternative to fetch_all() that returns entity-level
+        documents instead of file-level documents.
+
+        Args:
+            parser_registry: CodeParserRegistry instance (optional)
+            formatter: CodeEntityFormatter instance (optional)
+            batch_size: Number of files to process before yielding (for logging)
+
+        Yields:
+            Document objects for each code entity
+        """
+        document_ids = self.list_documents()
+        total_files = len(document_ids)
+        total_entities = 0
+        processed_files = 0
+
+        logger.info(f"Processing {total_files} files for entity extraction...")
+
+        for doc_id in document_ids:
+            try:
+                # Parse file into entity documents
+                entity_docs = self.parse_with_entities(doc_id, parser_registry, formatter)
+
+                # Yield each entity document
+                for doc in entity_docs:
+                    yield doc
+                    total_entities += 1
+
+                processed_files += 1
+
+                # Log progress
+                if processed_files % batch_size == 0:
+                    logger.info(
+                        f"Processed {processed_files}/{total_files} files, "
+                        f"extracted {total_entities} entities"
+                    )
+
+            except Exception as e:
+                logger.error(f"Error processing {doc_id}: {e}")
+                continue
+
+        logger.info(
+            f"Completed: {processed_files} files processed, "
+            f"{total_entities} entities extracted"
+        )
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get statistics about the codebase.
