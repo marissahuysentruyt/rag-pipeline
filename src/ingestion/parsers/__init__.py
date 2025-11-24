@@ -15,6 +15,7 @@ from .base import (
 
 from .python import PythonParser
 from .javascript import JavaScriptParser
+from .registry import CodeParserRegistry
 
 __all__ = [
     'CodeParser',
@@ -23,5 +24,6 @@ __all__ = [
     'ParseError',
     'PythonParser',
     'JavaScriptParser',
+    'CodeParserRegistry',
 ]
 
