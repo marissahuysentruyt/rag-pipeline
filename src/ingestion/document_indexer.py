@@ -244,6 +244,74 @@ class DocumentIndexer:
             self.document_store.delete_documents(doc_ids)
         logger.info(f"Cleared {len(all_docs) if all_docs else 0} documents")
 
+    def convert_chunks_to_documents(self, chunks: List) -> List[DocumentChunk]:
+        """
+        Convert Chunk objects to DocumentChunk objects for indexing.
+        
+        Args:
+            chunks: List of Chunk objects from processing
+            
+        Returns:
+            List of DocumentChunk objects
+        """
+        doc_chunks = []
+        
+        for chunk in chunks:
+            # Map ChunkType to string
+            chunk_type_str = "code" if hasattr(chunk, 'chunk_type') and chunk.chunk_type.name == "CODE" else "text"
+            
+            doc_chunk = DocumentChunk(
+                content=chunk.content,
+                metadata=chunk.metadata or {},
+                chunk_type=chunk_type_str,
+                heading=chunk.heading
+            )
+            doc_chunks.append(doc_chunk)
+        
+        logger.info(f"Converted {len(doc_chunks)} chunks to DocumentChunk objects")
+        return doc_chunks
+
+    def index_chunks_from_pipeline(self, chunks: List, batch_size: int = 10) -> int:
+        """
+        Index chunks from the processing pipeline.
+        
+        Args:
+            chunks: List of Chunk objects from processing
+            batch_size: Batch size for processing
+            
+        Returns:
+            Number of chunks indexed
+        """
+        # Convert chunks to DocumentChunk objects
+        doc_chunks = self.convert_chunks_to_documents(chunks)
+        
+        # Index the converted chunks
+        return self.index_chunks(doc_chunks, batch_size=batch_size)
+
+    def get_sample_document_info(self, chunks: List[DocumentChunk]) -> dict:
+        """
+        Get information about a sample document for display.
+        
+        Args:
+            chunks: List of DocumentChunk objects
+            
+        Returns:
+            Dictionary with sample document information
+        """
+        if not chunks:
+            return {}
+        
+        sample = chunks[0]
+        
+        return {
+            "content_length": len(sample.content),
+            "chunk_type": sample.chunk_type,
+            "heading": sample.heading or "None",
+            "component": sample.metadata.get("component", "N/A") if sample.metadata else "N/A",
+            "category": sample.metadata.get("category", "N/A") if sample.metadata else "N/A",
+            "title": sample.metadata.get("title", "N/A") if sample.metadata else "N/A"
+        }
+
 
 def main():
     """Run the indexing pipeline."""
