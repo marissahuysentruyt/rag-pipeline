@@ -7,7 +7,8 @@ making it easy to switch between different providers via configuration.
 
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+import numpy as np
 import yaml
 
 from .providers import (
@@ -294,3 +295,126 @@ def create_embedding_provider(
         >>> provider.load_model()
     """
     return EmbeddingProviderFactory.create(provider_type, config, **kwargs)
+
+
+class EmbeddingProcessor:
+    """
+    High-level processor for generating embeddings from chunks.
+    
+    Combines factory functionality with batch processing and statistics.
+    """
+    
+    def __init__(self, provider_type: str = "sentence-transformers", config: Optional[Dict[str, Any]] = None):
+        """
+        Initialize embedding processor.
+        
+        Args:
+            provider_type: Type of embedding provider
+            config: Configuration for the provider
+        """
+        self.provider = EmbeddingProviderFactory.create(provider_type, config)
+        self.model_info = None
+    
+    def load_model(self):
+        """Load the embedding model."""
+        self.provider.load_model()
+        self.model_info = self.provider.get_model_info()
+        return self.model_info
+    
+    def embed_chunks(self, chunks: List[Any], sample_size: Optional[int] = None) -> List[np.ndarray]:
+        """
+        Generate embeddings for a list of chunks.
+        
+        Args:
+            chunks: List of chunk objects with content attribute
+            sample_size: Number of chunks to process (None for all)
+            
+        Returns:
+            List of embedding arrays
+        """
+        if sample_size is not None:
+            chunks = chunks[:sample_size]
+        
+        embeddings = []
+        logger.info(f"Generating embeddings for {len(chunks)} chunks")
+        
+        for i, chunk in enumerate(chunks):
+            emb = self.provider.embed_text(chunk.content)
+            embeddings.append(emb)
+            logger.debug(f"Embedded chunk {i+1}/{len(chunks)}")
+        
+        logger.info(f"Generated {len(embeddings)} embeddings")
+        return embeddings
+    
+    def calculate_embedding_stats(self, embeddings: List[np.ndarray]) -> Dict[str, Any]:
+        """
+        Calculate statistics for generated embeddings.
+        
+        Args:
+            embeddings: List of embedding arrays
+            
+        Returns:
+            Dictionary with embedding statistics
+        """
+        if not embeddings:
+            return {}
+        
+        first_emb = embeddings[0]
+        norms = [np.linalg.norm(emb) for emb in embeddings]
+        
+        return {
+            "model_name": self.model_info["model_name"].split("/")[-1] if self.model_info else "unknown",
+            "dimensions": self.model_info["dimensions"] if self.model_info else len(first_emb),
+            "chunks_embedded": len(embeddings),
+            "embedding_dtype": str(first_emb.dtype),
+            "avg_embedding_norm": np.mean(norms),
+            "embedding_norm_std": np.std(norms),
+            "first_embedding_norm": norms[0]
+        }
+    
+    def calculate_similarity_matrix(self, embeddings: List[np.ndarray]) -> np.ndarray:
+        """
+        Calculate cosine similarity matrix between embeddings.
+        
+        Args:
+            embeddings: List of embedding arrays
+            
+        Returns:
+            2D numpy array with similarity scores
+        """
+        n = len(embeddings)
+        similarity_matrix = np.zeros((n, n))
+        
+        for i in range(n):
+            for j in range(n):
+                # Cosine similarity
+                similarity = np.dot(embeddings[i], embeddings[j]) / (
+                    np.linalg.norm(embeddings[i]) * np.linalg.norm(embeddings[j])
+                )
+                similarity_matrix[i, j] = similarity
+        
+        return similarity_matrix
+    
+    def get_embedding_preview(self, embeddings: List[np.ndarray], num_dims: int = 10) -> Dict[str, Any]:
+        """
+        Get preview information for embeddings.
+        
+        Args:
+            embeddings: List of embedding arrays
+            num_dims: Number of dimensions to show in preview
+            
+        Returns:
+            Dictionary with preview information
+        """
+        if not embeddings:
+            return {}
+        
+        first_emb = embeddings[0]
+        preview_values = first_emb[:num_dims]
+        
+        return {
+            "preview_dimensions": preview_values.tolist(),
+            "preview_string": ", ".join(f"{v:.4f}" for v in preview_values),
+            "total_dimensions": len(first_emb),
+            "first_norm": np.linalg.norm(first_emb)
+        }

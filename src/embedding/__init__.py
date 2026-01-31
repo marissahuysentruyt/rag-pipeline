@@ -14,6 +14,7 @@ from .providers import (
     TokenLimitExceededError,
     RateLimitError
 )
+from .factory import EmbeddingProviderFactory, EmbeddingProcessor
 
 __all__ = [
     'EmbeddingProvider',
@@ -22,5 +23,7 @@ __all__ = [
     'EmbeddingError',
     'ModelLoadError',
     'TokenLimitExceededError',
-    'RateLimitError'
+    'RateLimitError',
+    'EmbeddingProviderFactory',
+    'EmbeddingProcessor'
 ]
