@@ -16,26 +16,26 @@ python demo/run_full_pipeline.py --skip-generation
 
 ### Run Individual Phases
 
-Each phase can be run independently:
+Each phase can be run independently as a self-contained module:
 
 ```bash
 # Phase 1: Document Ingestion
-python demo/phase_1_ingest.py
+python3 -m src.ingestion
 
 # Phase 2: Semantic Chunking
-python demo/phase_2_chunk.py
+python3 -m src.processing
 
 # Phase 3: Embedding Generation
-python demo/phase_3_embed.py
+python3 -m src.embedding
 
 # Phase 4: Vector Indexing
-python demo/phase_4_index.py
+python3 src/ingestion/indexing.py  
 
 # Phase 5: Semantic Retrieval
-python demo/phase_5_retrieve.py
+python3 -m src.retrieval
 
 # Phase 6: AI Response Generation (requires API key)
-python demo/phase_6_generate.py
+python3 -m src.generation
 ```
 
 ## What Each Phase Demonstrates
