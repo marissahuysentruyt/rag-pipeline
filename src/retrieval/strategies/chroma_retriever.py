@@ -6,7 +6,7 @@ interface using Chroma as the vector database.
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 
 from haystack_integrations.document_stores.chroma import ChromaDocumentStore
@@ -409,6 +409,116 @@ class ChromaRetriever(RetrievalStrategy):
             "diversity_factor": self.config.diversity_factor,
             "rerank_enabled": self.config.rerank
         }
+
+    def check_index_status(self) -> Dict[str, Any]:
+        """
+        Check the status of the indexed documents.
+        
+        Returns:
+            Dictionary with index status information
+        """
+        try:
+            doc_count = self.document_store.count_documents()
+            return {
+                "has_documents": doc_count > 0,
+                "document_count": doc_count,
+                "collection_name": getattr(self.document_store, 'collection_name', 'unknown'),
+                "persist_path": getattr(self.document_store, 'persist_path', 'unknown')
+            }
+        except Exception as e:
+            logger.error(f"Error checking index status: {e}")
+            return {
+                "has_documents": False,
+                "document_count": 0,
+                "error": str(e)
+            }
+
+    def process_sample_queries(self, queries: List[str]) -> List[Dict[str, Any]]:
+        """
+        Process a list of sample queries and return formatted results.
+        
+        Args:
+            queries: List of query strings
+            
+        Returns:
+            List of dictionaries with query results
+        """
+        all_results = []
+        
+        for query in queries:
+            try:
+                # Retrieve documents for this query
+                result = self.retrieve(query)
+                documents = result.documents
+                
+                # Format results for display
+                formatted_results = []
+                for doc in documents:
+                    formatted_results.append({
+                        "score": f"{doc.score:.3f}" if doc.score else "N/A",
+                        "component": doc.metadata.get("component", doc.metadata.get("title", "Unknown")),
+                        "heading": doc.metadata.get("heading", "-"),
+                        "content_preview": doc.content[:80].replace("\n", " "),
+                        "full_content": doc.content,
+                        "metadata": doc.metadata
+                    })
+                
+                all_results.append({
+                    "query": query,
+                    "results_count": len(documents),
+                    "documents": formatted_results
+                })
+                
+            except Exception as e:
+                logger.error(f"Error processing query '{query}': {e}")
+                all_results.append({
+                    "query": query,
+                    "results_count": 0,
+                    "documents": [],
+                    "error": str(e)
+                })
+        
+        return all_results
+
+    def format_results_for_display(self, results: List[Dict[str, Any]]) -> List[List[Tuple[str, str, str, str, str]]]:
+        """
+        Format retrieval results for table display.
+        
+        Args:
+            results: List of query results from process_sample_queries
+            
+        Returns:
+            List of tuples: (rank, score, component, heading, preview)
+        """
+        formatted_for_table = []
+        
+        for query_result in results:
+            table_rows = []
+            for i, doc in enumerate(query_result["documents"], 1):
+                score = doc["score"]
+                component = doc["component"]
+                heading = doc["heading"]
+                if heading and len(heading) > 18:
+                    heading = heading[:18] + "..."
+                
+                preview = doc["content_preview"]
+                if len(preview) >= 80:
+                    preview = preview[:77] + "..."
+                
+                table_rows.append((str(i), score, component, heading, preview))
+            
+            formatted_for_table.append(table_rows)
+        
+        return formatted_for_table
+
+    def get_retrieval_method(self) -> RetrievalMethod:
+        """
+        Get the retrieval method used by this strategy.
+        
+        Returns:
+            The retrieval method (VECTOR_SIMILARITY for ChromaRetriever)
+        """
+        return RetrievalMethod.VECTOR_SIMILARITY
 
 
 class RetrievalError(Exception):

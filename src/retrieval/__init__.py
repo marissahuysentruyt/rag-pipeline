@@ -13,7 +13,8 @@ from .strategies import (
     RetrievalResult,
     RetrievalError,
     QueryError,
-    IndexNotFoundError
+    IndexNotFoundError,
+    ChromaRetriever
 )
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     'RetrievalResult',
     'RetrievalError',
     'QueryError',
-    'IndexNotFoundError'
+    'IndexNotFoundError',
+    'ChromaRetriever'
 ]
