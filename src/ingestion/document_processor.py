@@ -202,6 +202,85 @@ class DocumentProcessor:
         logger.info(f"Created {len(all_chunks)} total chunks from {len(md_files)} files")
         return all_chunks
 
+    def process_tsx_file(self, file_path: Path) -> Dict:
+        """
+        Process a TypeScript/TSX file and return document with metadata.
+
+        Args:
+            file_path: Path to TSX file
+
+        Returns:
+            Dict with 'metadata' and 'content' keys
+        """
+        content = file_path.read_text()
+        
+        return {
+            "metadata": {
+                "title": file_path.stem,
+                "component": file_path.stem,
+                "category": "Implementation",
+                "framework": "React/TypeScript",
+                "file_type": "tsx",
+                "domain": "golden.design"
+            },
+            "content": content
+        }
+
+    def process_batch(self, docs_path: Path, components_path: Path = None) -> List[Dict]:
+        """
+        Process multiple file types from different directories.
+
+        Args:
+            docs_path: Path to markdown documentation files
+            components_path: Path to TypeScript component files (optional)
+
+        Returns:
+            List of dicts with 'path' and 'doc' keys
+        """
+        all_docs = []
+        
+        # Process markdown files
+        md_files = list(docs_path.glob("*.md"))
+        logger.info(f"Processing {len(md_files)} markdown files from {docs_path}")
+        
+        for file_path in md_files:
+            doc = self.parse_markdown_file(file_path)
+            if doc:
+                all_docs.append({"path": file_path, "doc": doc})
+        
+        # Process TypeScript files if path provided
+        if components_path:
+            tsx_files = list(components_path.glob("*.tsx"))
+            logger.info(f"Processing {len(tsx_files)} TypeScript files from {components_path}")
+            
+            for file_path in tsx_files:
+                doc = self.process_tsx_file(file_path)
+                all_docs.append({"path": file_path, "doc": doc})
+        
+        return all_docs
+
+    def calculate_stats(self, documents: List[Dict]) -> Dict:
+        """
+        Calculate statistics for processed documents.
+
+        Args:
+            documents: List of dicts with 'path' and 'doc' keys
+
+        Returns:
+            Dict with statistics
+        """
+        md_count = len([d for d in documents if d["path"].suffix == ".md"])
+        tsx_count = len([d for d in documents if d["path"].suffix == ".tsx"])
+        total_content = sum(len(d["doc"]["content"]) for d in documents)
+        
+        return {
+            "markdown_files": md_count,
+            "typescript_files": tsx_count,
+            "total_documents": len(documents),
+            "total_content_size": total_content,
+            "average_document_size": total_content // len(documents) if documents else 0
+        }
+
 
 def main():
     """Test the document processor."""
