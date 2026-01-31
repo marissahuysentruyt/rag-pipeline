@@ -241,3 +241,88 @@ class MarkdownChunker(ChunkerStrategy):
 
         logger.debug(f"Created {len(chunks)} chunks from markdown text")
         return chunks
+
+    def process_documents(self, documents: List[Dict]) -> List[Chunk]:
+        """
+        Process multiple documents and return all chunks.
+
+        Args:
+            documents: List of dicts with 'path' and 'doc' keys
+
+        Returns:
+            List of all Chunk objects from all documents
+        """
+        all_chunks = []
+        
+        logger.info(f"Processing {len(documents)} documents")
+        
+        for doc_info in documents:
+            doc = doc_info["doc"]
+            filename = doc_info["path"].name
+            
+            chunks = self.chunk_text(doc["content"], doc["metadata"])
+            all_chunks.extend(chunks)
+            
+            logger.debug(f"Created {len(chunks)} chunks from {filename}")
+        
+        logger.info(f"Created {len(all_chunks)} total chunks from {len(documents)} documents")
+        return all_chunks
+
+    def calculate_chunk_stats(self, chunks: List[Chunk]) -> Dict:
+        """
+        Calculate statistics for processed chunks.
+
+        Args:
+            chunks: List of Chunk objects
+
+        Returns:
+            Dict with chunk statistics
+        """
+        if not chunks:
+            return {
+                "total_chunks": 0,
+                "text_chunks": 0,
+                "code_chunks": 0,
+                "avg_chunk_size": 0,
+                "min_chunk_size": 0,
+                "max_chunk_size": 0
+            }
+        
+        chunk_sizes = [len(chunk.content) for chunk in chunks]
+        text_chunks = [c for c in chunks if c.chunk_type == ChunkType.TEXT]
+        code_chunks = [c for c in chunks if c.chunk_type == ChunkType.CODE]
+        
+        return {
+            "total_chunks": len(chunks),
+            "text_chunks": len(text_chunks),
+            "code_chunks": len(code_chunks),
+            "avg_chunk_size": sum(chunk_sizes) // len(chunks),
+            "min_chunk_size": min(chunk_sizes),
+            "max_chunk_size": max(chunk_sizes)
+        }
+
+    def get_sample_chunks(self, chunks: List[Chunk], num_samples: int = 3) -> List[Dict]:
+        """
+        Get sample chunks for display.
+
+        Args:
+            chunks: List of Chunk objects
+            num_samples: Number of samples to return
+
+        Returns:
+            List of dicts with chunk info for display
+        """
+        samples = []
+        for i, chunk in enumerate(chunks[:num_samples], 1):
+            chunk_type_label = "CODE" if chunk.chunk_type == ChunkType.CODE else "TEXT"
+            preview = chunk.content[:150].replace("\n", " ")
+            
+            samples.append({
+                "index": i,
+                "type": chunk_type_label,
+                "size": len(chunk.content),
+                "heading": chunk.heading or "None",
+                "preview": preview + "..."
+            })
+        
+        return samples

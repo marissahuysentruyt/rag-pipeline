@@ -11,7 +11,8 @@ from .chunkers import (
     Chunk,
     ChunkType,
     ChunkingError,
-    InvalidChunkSizeError
+    InvalidChunkSizeError,
+    MarkdownChunker
 )
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     'Chunk',
     'ChunkType',
     'ChunkingError',
-    'InvalidChunkSizeError'
+    'InvalidChunkSizeError',
+    'MarkdownChunker'
 ]
