@@ -2,7 +2,7 @@
 Generation module for LLM-based text generation.
 
 This module provides interfaces and implementations for various
-LLM providers.
+LLM providers and RAG-based generation.
 """
 
 from .providers import (
@@ -16,6 +16,7 @@ from .providers import (
     RateLimitError,
     ContextLengthExceededError
 )
+from .rag_generator import RAGGenerator
 
 __all__ = [
     'LLMProvider',
@@ -26,5 +27,6 @@ __all__ = [
     'GenerationError',
     'AuthenticationError',
     'RateLimitError',
-    'ContextLengthExceededError'
+    'ContextLengthExceededError',
+    'RAGGenerator'
 ]
