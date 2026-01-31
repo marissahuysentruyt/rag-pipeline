@@ -30,7 +30,7 @@ cp .env.example .env
 
 3. Start the services with Docker Compose:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 4. The API will be available at `http://localhost:8000`
