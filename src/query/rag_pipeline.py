@@ -214,6 +214,71 @@ Instructions:
         result = self.retriever.run(**retriever_params)
         return result["documents"]
 
+    def build_context_from_documents(self, documents: List, max_docs: int = 3) -> str:
+        """
+        Build context string from retrieved documents.
+        
+        Args:
+            documents: List of retrieved Document objects
+            max_docs: Maximum number of documents to include
+            
+        Returns:
+            Formatted context string
+        """
+        context_parts = []
+        for i, doc in enumerate(documents[:max_docs], 1):
+            # Handle both Haystack Document (meta) and RetrievedDocument (metadata)
+            if hasattr(doc, 'meta'):
+                meta = doc.meta
+            else:
+                meta = doc.metadata
+                
+            source = meta.get("component", meta.get("title", "Unknown"))
+            heading = meta.get("heading", "")
+            header = f"Source: {source}"
+            if heading:
+                header += f" > {heading}"
+            context_parts.append(f"--- {header} ---\n{doc.content}")
+        
+        return "\n\n".join(context_parts)
+
+    def check_api_key(self) -> bool:
+        """
+        Check if Anthropic API key is configured.
+        
+        Returns:
+            True if API key is available, False otherwise
+        """
+        return bool(os.getenv("ANTHROPIC_API_KEY"))
+
+    def format_sources_for_display(self, documents: List) -> List[Dict[str, str]]:
+        """
+        Format sources for display.
+        
+        Args:
+            documents: List of Document objects
+            
+        Returns:
+            List of formatted source information
+        """
+        sources = []
+        for doc in documents:
+            # Handle both Haystack Document (meta) and RetrievedDocument (metadata)
+            if hasattr(doc, 'meta'):
+                meta = doc.meta
+            else:
+                meta = doc.metadata
+                
+            source = meta.get("component", meta.get("title", "Unknown"))
+            score = f"{doc.score:.3f}" if doc.score else "N/A"
+            sources.append({
+                "source": source,
+                "score": score,
+                "heading": meta.get("heading", ""),
+                "url": meta.get("url", "")
+            })
+        return sources
+
 
 def main():
     """Test the RAG pipeline."""
