@@ -54,55 +54,69 @@ def run_full_demo(skip_generation: bool = False):
     # Pause for effect
     time.sleep(1)
 
-    # Import phase demos
-    from demo.phase_1_ingest import run_demo as phase_1
-    from demo.phase_2_chunk import run_demo as phase_2
-    from demo.phase_3_embed import run_demo as phase_3
-    from demo.phase_4_index import run_demo as phase_4
-    from demo.phase_5_retrieve import run_demo as phase_5
-    from demo.phase_6_generate import run_demo as phase_6
+    # Import phase modules
+    import subprocess
+    import sys
+    
+    def run_phase_module(module_name, description):
+        """Run a phase module and display output."""
+        console.transition(f"Starting {description}")
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", module_name],
+                capture_output=True,
+                text=True,
+                cwd=Path(__file__).parent.parent
+            )
+            if result.returncode == 0:
+                # Print the output directly to maintain formatting
+                console.console.print(result.stdout)
+            else:
+                console.error(f"Phase failed: {result.stderr}")
+                return None
+        except Exception as e:
+            console.error(f"Error running phase: {e}")
+            return None
+        return True
 
+    # Run phases using modules
+    success_count = 0
+    
     # Phase 1: Ingestion
-    console.transition("Starting Phase 1: Document Ingestion")
-    result_1 = phase_1()
+    if run_phase_module("src.ingestion", "Phase 1: Document Ingestion"):
+        success_count += 1
     time.sleep(0.5)
 
     # Phase 2: Chunking
-    console.transition("Starting Phase 2: Semantic Chunking")
-    result_2 = phase_2(documents=result_1["documents"])
+    if run_phase_module("src.processing", "Phase 2: Semantic Chunking"):
+        success_count += 1
     time.sleep(0.5)
 
-    # Phase 3: Embedding (sample only to save time)
-    console.transition("Starting Phase 3: Embedding Generation")
-    result_3 = phase_3(chunks=result_2["chunks"][:5])
+    # Phase 3: Embedding
+    if run_phase_module("src.embedding", "Phase 3: Embedding Generation"):
+        success_count += 1
     time.sleep(0.5)
 
     # Phase 4: Indexing
-    console.transition("Starting Phase 4: Vector Indexing")
-    result_4 = phase_4(chunks=result_2["chunks"])
+    if run_phase_module("src.ingestion.indexing", "Phase 4: Vector Indexing"):
+        success_count += 1
     time.sleep(0.5)
 
     # Phase 5: Retrieval
-    console.transition("Starting Phase 5: Semantic Retrieval")
-    result_5 = phase_5(ensure_indexed=False)
+    if run_phase_module("src.retrieval", "Phase 5: Semantic Retrieval"):
+        success_count += 1
     time.sleep(0.5)
 
     # Phase 6: Generation (optional)
+    generation_success = False
     if not skip_generation:
-        console.transition("Starting Phase 6: AI Response Generation")
-        try:
-            result_6 = phase_6()
-        except Exception as e:
-            console.error(f"Phase 6 failed: {e}")
-            console.console.print(
-                "[dim]Ensure ANTHROPIC_API_KEY is set in .env[/dim]"
-            )
-            result_6 = None
+        if run_phase_module("src.generation", "Phase 6: AI Response Generation"):
+            generation_success = True
+            success_count += 1
     else:
         console.console.print(
             "\n[yellow]Skipping Phase 6 (--skip-generation flag)[/yellow]\n"
         )
-        result_6 = None
 
     # Final summary
     console.completion_banner(
@@ -119,15 +133,11 @@ def run_full_demo(skip_generation: bool = False):
 
     # Print summary stats
     console.console.print("[bold]Pipeline Summary:[/bold]")
-    console.key_value("Documents ingested", len(result_1["documents"]))
-    console.key_value("Chunks created", len(result_2["chunks"]))
-    console.key_value("Chunks indexed", result_4["indexed_count"])
-    console.key_value(
-        "Sample queries run",
-        len(result_5["results"]) if result_5 else 0,
-    )
-    if result_6 and "answer" in result_6:
-        console.key_value("AI response generated", "Yes")
+    console.key_value("Phases completed", f"{success_count}/6")
+    if not skip_generation:
+        console.key_value("Generation phase", "Completed" if generation_success else "Skipped")
+    else:
+        console.key_value("Generation phase", "Skipped by user")
     console.console.print()
 
 
