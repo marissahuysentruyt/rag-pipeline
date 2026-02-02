@@ -89,7 +89,7 @@ class DesignSystemRAG:
 
         # Prompt builder
         prompt_template = [ChatMessage.from_system(
-            "You are an expert assistant helping developers use Adobe Spectrum design system components and guidelines."
+            "You are an expert assistant helping developers use Golden design system components and guidelines."
         )]
 
         self.prompt_builder = ChatPromptBuilder(
@@ -110,7 +110,7 @@ Instructions:
 - Provide a clear, accurate answer based on the documentation above
 - If referencing specific components or patterns, mention them by name
 - Include code examples from the documentation when relevant
-- If the documentation doesn't contain enough information, say so
+- If the documentation doesn't contain enough information, say so (i.e. say "I don't know" as opposed to inferring)
 - Cite sources by mentioning the component or page name""")]
         )
 
