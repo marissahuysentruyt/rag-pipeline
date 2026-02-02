@@ -29,6 +29,9 @@ from rich.table import Table
 
 from src.query.rag_pipeline import DesignSystemRAG
 
+DEFAULT_COLLECTION = "golden_demo"
+DEFAULT_PERSIST_PATH = "./data/demo_chroma_db"
+
 # Set up console for rich output
 console = Console()
 
@@ -249,12 +252,17 @@ Examples:
     # Initialize RAG system
     try:
         with console.status("[bold green]Loading RAG system...", spinner="dots"):
-            rag = DesignSystemRAG(top_k=args.top_k)
+            rag = DesignSystemRAG(
+                collection_name=DEFAULT_COLLECTION,
+                persist_path=DEFAULT_PERSIST_PATH,
+                top_k=args.top_k
+            )
     except Exception as e:
         console.print(f"[bold red]Error initializing RAG system:[/bold red] {e}")
         console.print("\n[dim]Make sure you have:")
         console.print("  1. Set ANTHROPIC_API_KEY in .env")
-        console.print("  2. Run the indexer first: python src/ingestion/document_indexer.py[/dim]\n")
+        console.print("  2. Run the indexer first: python src/ingestion/document_indexer.py")
+        console.print("[/dim]\n")
         sys.exit(1)
 
     # Run in appropriate mode
