@@ -13,7 +13,8 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+REPO_ROOT = Path(__file__).parent
+sys.path.insert(0, str(REPO_ROOT))
 
 from dotenv import load_dotenv
 
@@ -66,7 +67,7 @@ def run_full_demo(skip_generation: bool = False):
                 [sys.executable, "-m", module_name],
                 capture_output=True,
                 text=True,
-                cwd=Path(__file__).parent.parent
+                cwd=REPO_ROOT
             )
             if result.returncode == 0:
                 # Print the output directly to maintain formatting
