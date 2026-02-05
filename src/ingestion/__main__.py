@@ -95,7 +95,7 @@ class IngestionConsole:
 
 def main():
     """Run ingestion as a module with rich console output."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
     
     console = IngestionConsole()
     
@@ -110,7 +110,6 @@ def main():
     )
     
     # Initialize processor
-    console.info("Initializing DocumentProcessor...")
     processor = DocumentProcessor(min_chunk_size=200, max_chunk_size=1500)
     
     # Define paths
@@ -135,17 +134,6 @@ def main():
     # Process files with spinner
     with console.spinner("Processing documents"):
         documents = processor.process_batch(docs_path, components_path if components_path.exists() else None)
-    
-    # Calculate and display statistics
-    stats = processor.calculate_stats(documents)
-    
-    console.summary_table("Ingestion Summary", {
-        "Markdown files parsed": stats['markdown_files'],
-        "TypeScript files read": stats['typescript_files'],
-        "Total documents": stats['total_documents'],
-        "Total content size": f"{stats['total_content_size']:,} characters",
-        "Avg document size": f"{stats['average_document_size']:,} characters",
-    })
     
     # Show sample from first markdown document
     md_docs = [d for d in documents if d["path"].suffix == ".md"]

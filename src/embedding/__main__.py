@@ -7,8 +7,34 @@ Run with: python -m src.embedding
 import logging
 from pathlib import Path
 import sys
+import os
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
+
+
+@contextmanager
+def suppress_output():
+    """Suppress stdout/stderr at the OS level for C libraries like MLX."""
+    # Save original file descriptors
+    stdout_fd = sys.stdout.fileno()
+    stderr_fd = sys.stderr.fileno()
+    saved_stdout = os.dup(stdout_fd)
+    saved_stderr = os.dup(stderr_fd)
+
+    # Open devnull and redirect
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, stdout_fd)
+    os.dup2(devnull, stderr_fd)
+    os.close(devnull)
+
+    try:
+        yield
+    finally:
+        # Restore original file descriptors
+        os.dup2(saved_stdout, stdout_fd)
+        os.dup2(saved_stderr, stderr_fd)
+        os.close(saved_stdout)
+        os.close(saved_stderr)
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -103,8 +129,10 @@ class EmbeddingConsole:
 
 
 def main():
-    """Run embedding as a module with rich console output."""
-    logging.basicConfig(level=logging.INFO)
+    """Run embedding as a module with rich console output.
+    Suppress HuggingFace logging. """
+    logging.basicConfig(level=logging.ERROR)
+    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
     
     console = EmbeddingConsole()
     
@@ -152,16 +180,13 @@ def main():
     
     console.info(f"Loaded {len(chunks)} chunks for embedding")
     
+    
     # Initialize embedding processor
     console.info("Initializing embedding processor...")
-    processor = EmbeddingProcessor("sentence-transformers")
-    
-    with console.spinner("Loading model weights"):
-        model_info = processor.load_model()
-    
-    console.console.print(f"  Model: [green]{model_info['model_name']}[/green]")
-    console.console.print(f"  Dimensions: [green]{model_info['dimensions']}[/green]")
-    console.console.print()
+    with console.spinner("Loading embedding model"):
+        with suppress_output():
+            processor = EmbeddingProcessor("sentence-transformers")
+            processor.load_model()
     
     # Generate embeddings for sample chunks
     sample_size = min(5, len(chunks))
@@ -180,14 +205,6 @@ def main():
     
     # Calculate and display statistics
     stats = processor.calculate_embedding_stats(embeddings)
-    
-    console.summary_table("Embedding Summary", {
-        "Model": stats["model_name"],
-        "Dimensions": stats["dimensions"],
-        "Chunks embedded": stats["chunks_embedded"],
-        "Embedding dtype": stats["embedding_dtype"],
-        "Embedding norm": f"{stats['first_embedding_norm']:.4f}",
-    })
     
     # Show sample embedding values
     preview = processor.get_embedding_preview(embeddings)

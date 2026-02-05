@@ -82,13 +82,14 @@ class ProcessingConsole:
             yield
     
     def display_chunks(self, chunks: List[Dict]):
-        """Display sample chunks."""
+        """Display sample chunk."""
         self.console.print("[bold]Sample Chunks:[/bold]\n")
         for chunk in chunks:
             self.console.print(
                 f"[cyan]Chunk {chunk['index']}[/cyan] "
                 f"([yellow]{chunk['type']}[/yellow], {chunk['size']} chars)"
             )
+            self.console.print(f"  Source: [magenta]{chunk['source']}[/magenta]")
             self.console.print(f"  Heading: [green]{chunk['heading']}[/green]")
             self.console.print(f"  Preview: {chunk['preview']}")
             self.console.print()
@@ -96,7 +97,7 @@ class ProcessingConsole:
 
 def main():
     """Run processing as a module with rich console output."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
     
     console = ProcessingConsole()
     
@@ -152,14 +153,11 @@ def main():
         "Total chunks created": stats['total_chunks'],
         "Text chunks": stats['text_chunks'],
         "Code-containing chunks": stats['code_chunks'],
-        "Avg chunk size": f"{stats['avg_chunk_size']:,} chars",
-        "Min chunk size": f"{stats['min_chunk_size']:,} chars",
-        "Max chunk size": f"{stats['max_chunk_size']:,} chars",
     })
     
-    # Show sample chunks
+    # Show sample chunk
     samples = chunker.get_sample_chunks(chunks)
-    console.display_chunks(samples)
+    console.display_chunks([samples[0]])
     
     console.success("Chunking completed successfully!")
 

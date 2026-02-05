@@ -7,8 +7,31 @@ Run with: python -m src.retrieval
 import logging
 from pathlib import Path
 import sys
+import os
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
+
+
+@contextmanager
+def suppress_output():
+    """Suppress stdout/stderr at the OS level for C libraries like MLX."""
+    stdout_fd = sys.stdout.fileno()
+    stderr_fd = sys.stderr.fileno()
+    saved_stdout = os.dup(stdout_fd)
+    saved_stderr = os.dup(stderr_fd)
+
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, stdout_fd)
+    os.dup2(devnull, stderr_fd)
+    os.close(devnull)
+
+    try:
+        yield
+    finally:
+        os.dup2(saved_stdout, stdout_fd)
+        os.dup2(saved_stderr, stderr_fd)
+        os.close(saved_stdout)
+        os.close(saved_stderr)
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -92,7 +115,7 @@ class RetrievalConsole:
 
 def main():
     """Run retrieval as a module with rich console output."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
     
     console = RetrievalConsole()
     
@@ -134,10 +157,10 @@ def main():
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         dimensions=384
     )
-    embedding_provider = SentenceTransformersProvider(embedding_config)
-    
-    with console.spinner("Loading embedder"):
-        embedding_provider.load_model()
+    with console.spinner("Loading query embedder"):
+        with suppress_output():
+            embedding_provider = SentenceTransformersProvider(embedding_config)
+            embedding_provider.load_model()
     
     # Now create retriever with embedding provider
     retriever = ChromaRetriever(
@@ -155,13 +178,6 @@ def main():
     
     console.console.print(f"  Found [green]{index_status['document_count']}[/green] indexed documents")
     console.console.print()
-    
-    console.summary_table("Retrieval Configuration", {
-        "Total indexed documents": index_status["document_count"],
-        "Top K results": 3,
-        "Embedding model": "all-MiniLM-L6-v2",
-        "Collection": DEMO_COLLECTION,
-    })
     
     # Process sample queries
     console.info(f"Processing {len(SAMPLE_QUERIES)} sample queries...")

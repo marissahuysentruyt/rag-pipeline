@@ -259,8 +259,10 @@ class MarkdownChunker(ChunkerStrategy):
         for doc_info in documents:
             doc = doc_info["doc"]
             filename = doc_info["path"].name
-            
-            chunks = self.chunk_text(doc["content"], doc["metadata"])
+
+            # Add source filename to metadata
+            metadata = {**doc["metadata"], "source": filename}
+            chunks = self.chunk_text(doc["content"], metadata)
             all_chunks.extend(chunks)
             
             logger.debug(f"Created {len(chunks)} chunks from {filename}")
@@ -322,7 +324,8 @@ class MarkdownChunker(ChunkerStrategy):
                 "type": chunk_type_label,
                 "size": len(chunk.content),
                 "heading": chunk.heading or "None",
-                "preview": preview + "..."
+                "preview": preview + "...",
+                "source": chunk.metadata.get("source", "Unknown") if chunk.metadata else "Unknown"
             })
         
         return samples

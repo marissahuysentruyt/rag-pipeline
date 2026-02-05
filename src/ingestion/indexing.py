@@ -7,8 +7,31 @@ Run with: python -m src.ingestion.indexing
 import logging
 from pathlib import Path
 import sys
+import os
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
+
+
+@contextmanager
+def suppress_output():
+    """Suppress stdout/stderr at the OS level for C libraries like MLX."""
+    stdout_fd = sys.stdout.fileno()
+    stderr_fd = sys.stderr.fileno()
+    saved_stdout = os.dup(stdout_fd)
+    saved_stderr = os.dup(stderr_fd)
+
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, stdout_fd)
+    os.dup2(devnull, stderr_fd)
+    os.close(devnull)
+
+    try:
+        yield
+    finally:
+        os.dup2(saved_stdout, stdout_fd)
+        os.dup2(saved_stderr, stderr_fd)
+        os.close(saved_stdout)
+        os.close(saved_stderr)
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -89,7 +112,7 @@ class IndexingConsole:
 
 def main():
     """Run indexing as a module with rich console output."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
     
     console = IndexingConsole()
     
@@ -141,40 +164,19 @@ def main():
     console.info(f"Loaded {len(chunks)} chunks for indexing")
     
     # Initialize the indexer
-    console.info(f"Initializing Chroma collection: [cyan]{DEMO_COLLECTION}[/cyan]")
-    console.console.print(f"  Persist path: [dim]{DEMO_PERSIST_PATH}[/dim]")
-    console.console.print()
-    
-    indexer = DocumentIndexer(
-        collection_name=DEMO_COLLECTION,
-        persist_path=DEMO_PERSIST_PATH
-    )
-    
-    # Clear existing demo data for clean demo
-    with console.spinner("Clearing existing demo data"):
-        indexer.clear_index()
-    
-    # Index chunks
-    with console.spinner(f"Indexing {len(chunks)} chunks"):
-        indexed_count = indexer.index_chunks_from_pipeline(chunks, batch_size=10)
+    with console.spinner(f"Initializing Chroma vector database: {DEMO_COLLECTION}"):
+        with suppress_output():
+            indexer = DocumentIndexer(
+                collection_name=DEMO_COLLECTION,
+                persist_path=DEMO_PERSIST_PATH
+            )
     
     # Get stats
     stats = indexer.get_stats()
     
-    console.summary_table("Indexing Summary", {
-        "Chunks indexed": indexed_count,
-        "Collection name": stats["collection_name"],
-        "Embedding model": stats["embedding_model"].split("/")[-1],
-        "Persist path": stats["persist_path"],
-        "Total documents in store": stats["total_documents"],
-    })
+    console.info(f"Total documents in store: {stats['total_documents']}")
     
-    # Show sample indexed document
-    doc_chunks = indexer.convert_chunks_to_documents(chunks)
-    sample_info = indexer.get_sample_document_info(doc_chunks)
-    console.display_sample_document(sample_info)
-    
-    console.success("Indexing completed successfully!")
+    console.success("Vector indexing completed successfully!")
 
 
 if __name__ == "__main__":

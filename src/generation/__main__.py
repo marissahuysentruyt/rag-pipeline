@@ -7,8 +7,31 @@ Run with: python -m src.generation
 import logging
 from pathlib import Path
 import sys
+import os
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
+
+
+@contextmanager
+def suppress_output():
+    """Suppress stdout/stderr at the OS level for C libraries like MLX."""
+    stdout_fd = sys.stdout.fileno()
+    stderr_fd = sys.stderr.fileno()
+    saved_stdout = os.dup(stdout_fd)
+    saved_stderr = os.dup(stderr_fd)
+
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, stdout_fd)
+    os.dup2(devnull, stderr_fd)
+    os.close(devnull)
+
+    try:
+        yield
+    finally:
+        os.dup2(saved_stdout, stdout_fd)
+        os.dup2(saved_stderr, stderr_fd)
+        os.close(saved_stdout)
+        os.close(saved_stderr)
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -102,7 +125,7 @@ class GenerationConsole:
 
 def main():
     """Run generation as a module with rich console output."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
     
     console = GenerationConsole()
     
@@ -123,17 +146,16 @@ def main():
     )
     
     # Initialize RAG generator
-    console.info("Initializing RAG generator...")
-    generator = RAGGenerator(
-        collection_name=DEMO_COLLECTION,
-        persist_path=DEMO_PERSIST_PATH,
-        top_k=3
-    )
-    
-    with console.spinner("Initializing components"):
-        if not generator.initialize():
-            console.error("Failed to initialize RAG generator")
-            return
+    with console.spinner("Initializing RAG generator"):
+        with suppress_output():
+            generator = RAGGenerator(
+                collection_name=DEMO_COLLECTION,
+                persist_path=DEMO_PERSIST_PATH,
+                top_k=3
+            )
+            if not generator.initialize():
+                console.error("Failed to initialize RAG generator")
+                return
     
     # Check API key
     console.info("Checking API configuration...")
@@ -160,11 +182,12 @@ def main():
     console.console.print(f"\n[bold yellow]Query:[/bold yellow] {DEMO_QUERY}\n")
     
     with console.spinner("Generating response with Claude"):
-        response = generator.generate_response(
-            query=DEMO_QUERY,
-            include_context=True,
-            max_context_docs=3
-        )
+        with suppress_output():
+            response = generator.generate_response(
+                query=DEMO_QUERY,
+                include_context=True,
+                max_context_docs=3
+            )
     
     if "error" in response:
         console.error(f"Generation failed: {response['error']}")
@@ -180,16 +203,6 @@ def main():
     # Display sources
     if "sources" in response:
         console.display_sources(response["sources"])
-    
-    # Summary stats
-    stats = generator.get_generation_stats(response)
-    console.summary_table("Generation Stats", {
-        "Model": stats["model"],
-        "Documents retrieved": stats["documents_retrieved"],
-        "Query": DEMO_QUERY[:50] + "..." if len(DEMO_QUERY) > 50 else DEMO_QUERY,
-        "Answer length": f"{stats['answer_length']} chars",
-        "Sources used": stats["sources_count"]
-    })
     
     console.success("Generation completed successfully!")
 
