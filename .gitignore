@@ -44,6 +44,7 @@ src/query/data/chroma_db/
 !data/processed/.gitkeep
 !data/vectorstore/.gitkeep
 data/demo_chroma_db/
+data/golden/
 
 # Logs
 *.log
