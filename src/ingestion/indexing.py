@@ -171,11 +171,17 @@ def main():
                 persist_path=DEMO_PERSIST_PATH
             )
     
+    # Index the chunks into the vector store
+    with console.spinner("Embedding and indexing chunks"):
+        with suppress_output():
+            indexed_count = indexer.index_chunks_from_pipeline(chunks)
+
     # Get stats
     stats = indexer.get_stats()
-    
+
+    console.info(f"Indexed {indexed_count} chunks")
     console.info(f"Total documents in store: {stats['total_documents']}")
-    
+
     console.success("Vector indexing completed successfully!")
 
 
